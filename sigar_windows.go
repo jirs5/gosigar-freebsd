@@ -33,6 +33,12 @@ func (self *Mem) Get() error {
 	}
 
 	self.Total = uint64(statex.ullTotalPhys)
+	self.Free = uint64(statex.ullAvailPhys)
+	self.Used = self.Total - self.Free
+	vtotal := uint64(statex.ullTotalVirtual)
+	self.ActualFree = uint64(statex.ullAvailVirtual)
+	self.ActualUsed = vtotal - self.ActualFree
+
 	return nil
 }
 
@@ -41,7 +47,27 @@ func (self *Swap) Get() error {
 }
 
 func (self *Cpu) Get() error {
-	return notImplemented()
+
+	var lpIdleTime, lpKernelTime, lpUserTime C.FILETIME
+
+	succeeded := C.GetSystemTimes(&lpIdleTime, &lpKernelTime, &lpUserTime)
+	if succeeded == C.FALSE {
+		lastError := C.GetLastError()
+		return fmt.Errorf("GetSystemTime failed with error: %d", int(lastError))
+	}
+
+	LOT := float64(0.0000001)
+	HIT := (LOT * 4294967296.0)
+
+	idle := ((HIT * float64(lpIdleTime.dwHighDateTime)) + (LOT * float64(lpIdleTime.dwLowDateTime)))
+	user := ((HIT * float64(lpUserTime.dwHighDateTime)) + (LOT * float64(lpUserTime.dwLowDateTime)))
+	kernel := ((HIT * float64(lpKernelTime.dwHighDateTime)) + (LOT * float64(lpKernelTime.dwLowDateTime)))
+	system := (kernel - idle)
+
+	self.Idle = uint64(idle)
+	self.User = uint64(user)
+	self.Sys = uint64(system)
+	return nil
 }
 
 func (self *CpuList) Get() error {
