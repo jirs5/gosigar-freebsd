@@ -8,7 +8,14 @@ import "C"
 
 import (
 	"fmt"
+	"syscall"
 	"unsafe"
+)
+
+var (
+	modpsapi = syscall.NewLazyDLL("psapi.dll")
+
+	procEnumProcesses = modpsapi.NewProc("EnumProcesses")
 )
 
 func init() {
@@ -43,7 +50,8 @@ func (self *Mem) Get() error {
 }
 
 func (self *Swap) Get() error {
-	return notImplemented()
+	//return notImplemented()
+	return nil
 }
 
 func (self *Cpu) Get() error {
@@ -78,8 +86,35 @@ func (self *FileSystemList) Get() error {
 	return notImplemented()
 }
 
+// Retrieves the process identifier for each process object in the system.
+
 func (self *ProcList) Get() error {
-	return notImplemented()
+
+	var enumSize int
+
+	pids := make([]C.DWORD, 1024)
+
+	// If the function succeeds, the return value is nonzero.
+	ret, _, _ := procEnumProcesses.Call(
+		uintptr(unsafe.Pointer(&pids[0])),
+		uintptr(uint32(len(pids))),
+		uintptr(unsafe.Pointer(&enumSize)),
+	)
+	if ret == 0 {
+		return fmt.Errorf("error %d while reading processes", C.GetLastError())
+	}
+
+	results := []int{}
+
+	pids_size := enumSize / int(unsafe.Sizeof(pids[0]))
+
+	for _, pid := range pids[:pids_size] {
+		results = append(results, int(pid))
+	}
+
+	self.List = results
+
+	return nil
 }
 
 func (self *ProcState) Get(pid int) error {
