@@ -91,13 +91,12 @@ func (self *FileSystemList) Get() error {
 func (self *ProcList) Get() error {
 
 	var enumSize int
-
-	pids := make([]C.DWORD, 1024)
+	var pids [1024]C.DWORD
 
 	// If the function succeeds, the return value is nonzero.
 	ret, _, _ := procEnumProcesses.Call(
 		uintptr(unsafe.Pointer(&pids[0])),
-		uintptr(uint32(len(pids))),
+		uintptr(unsafe.Sizeof(pids)),
 		uintptr(unsafe.Pointer(&enumSize)),
 	)
 	if ret == 0 {
