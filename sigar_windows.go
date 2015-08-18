@@ -9,14 +9,34 @@ import "C"
 import (
 	"fmt"
 	"syscall"
+	"time"
 	"unsafe"
 )
 
 var (
-	modpsapi = syscall.NewLazyDLL("psapi.dll")
+	modpsapi    = syscall.NewLazyDLL("psapi.dll")
+	modkernel32 = syscall.NewLazyDLL("kernel32.dll")
 
-	procEnumProcesses = modpsapi.NewProc("EnumProcesses")
+	procEnumProcesses        = modpsapi.NewProc("EnumProcesses")
+	procGetProcessMemoryInfo = modpsapi.NewProc("GetProcessMemoryInfo")
+	procGetProcessTimes      = modkernel32.NewProc("GetProcessTimes")
 )
+
+const PROCESS_ALL_ACCESS = 0x001f0fff
+
+type PROCESS_MEMORY_COUNTERS_EX struct {
+	CB                         uint32
+	PageFaultCount             uint32
+	PeakWorkingSetSize         uintptr
+	WorkingSetSize             uintptr
+	QuotaPeakPagedPoolUsage    uintptr
+	QuotaPagedPoolUsage        uintptr
+	QuotaPeakNonPagedPoolUsage uintptr
+	QuotaNonPagedPoolUsage     uintptr
+	PagefileUsage              uintptr
+	PeakPagefileUsage          uintptr
+	PrivateUsage               uintptr
+}
 
 func init() {
 }
@@ -116,16 +136,72 @@ func (self *ProcList) Get() error {
 	return nil
 }
 
+func FiletimeToDuration(ft *syscall.Filetime) time.Duration {
+	n := int64(ft.HighDateTime)<<32 + int64(ft.LowDateTime) // in 100-nanosecond intervals
+	return time.Duration(n*100) * time.Nanosecond
+}
+
 func (self *ProcState) Get(pid int) error {
-	return notImplemented()
+	//return notImplemented()
+	return nil
 }
 
 func (self *ProcMem) Get(pid int) error {
-	return notImplemented()
+	handle, err := syscall.OpenProcess(PROCESS_ALL_ACCESS, false, uint32(pid))
+
+	defer syscall.CloseHandle(handle)
+
+	if err != nil {
+		return fmt.Errorf("OpenProcess fails with %v", err)
+	}
+
+	var mem PROCESS_MEMORY_COUNTERS_EX
+	mem.CB = uint32(unsafe.Sizeof(mem))
+
+	r1, _, e1 := procGetProcessMemoryInfo.Call(
+		uintptr(handle),
+		uintptr(unsafe.Pointer(&mem)),
+		uintptr(mem.CB),
+	)
+	if r1 == 0 {
+		if e1 != nil {
+			return error(e1)
+		} else {
+			return syscall.EINVAL
+		}
+	}
+
+	self.Resident = uint64(mem.WorkingSetSize)
+	self.Size = uint64(mem.PrivateUsage)
+	// Size contains only to the Private Bytes
+	// Virtual Bytes are the Working Set plus paged Private Bytes and standby list.
+	return nil
 }
 
 func (self *ProcTime) Get(pid int) error {
-	return notImplemented()
+	handle, err := syscall.OpenProcess(syscall.PROCESS_QUERY_INFORMATION, false, uint32(pid))
+
+	defer syscall.CloseHandle(handle)
+
+	if err != nil {
+		return fmt.Errorf("OpenProcess fails with %v", err)
+
+	}
+	var CPU syscall.Rusage
+	if err := syscall.GetProcessTimes(handle, &CPU.CreationTime, &CPU.ExitTime, &CPU.KernelTime, &CPU.UserTime); err != nil {
+		return fmt.Errorf("GetProcessTimes fails with %v", err)
+	}
+
+	// convert to millis
+	self.StartTime = uint64(FiletimeToDuration(&CPU.CreationTime).Nanoseconds() / 1e6)
+
+	self.User = uint64(FiletimeToDuration(&CPU.UserTime).Nanoseconds() / 1e6)
+
+	self.Sys = uint64(FiletimeToDuration(&CPU.KernelTime).Nanoseconds() / 1e6)
+
+	self.Total = self.User + self.Sys
+
+	return nil
 }
 
 func (self *ProcArgs) Get(pid int) error {
