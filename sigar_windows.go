@@ -8,6 +8,8 @@ import "C"
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"syscall"
 	"time"
 	"unsafe"
@@ -17,12 +19,16 @@ var (
 	modpsapi    = syscall.NewLazyDLL("psapi.dll")
 	modkernel32 = syscall.NewLazyDLL("kernel32.dll")
 
-	procEnumProcesses        = modpsapi.NewProc("EnumProcesses")
-	procGetProcessMemoryInfo = modpsapi.NewProc("GetProcessMemoryInfo")
-	procGetProcessTimes      = modkernel32.NewProc("GetProcessTimes")
+	procEnumProcesses           = modpsapi.NewProc("EnumProcesses")
+	procGetProcessMemoryInfo    = modpsapi.NewProc("GetProcessMemoryInfo")
+	procGetProcessTimes         = modkernel32.NewProc("GetProcessTimes")
+	procGetProcessImageFileName = modpsapi.NewProc("GetProcessImageFileNameA")
 )
 
-const PROCESS_ALL_ACCESS = 0x001f0fff
+const (
+	PROCESS_ALL_ACCESS = 0x001f0fff
+	MAX_PATH           = 260
+)
 
 type PROCESS_MEMORY_COUNTERS_EX struct {
 	CB                         uint32
@@ -141,9 +147,79 @@ func FiletimeToDuration(ft *syscall.Filetime) time.Duration {
 	return time.Duration(n*100) * time.Nanosecond
 }
 
+func CarrayToString(c [MAX_PATH]byte) string {
+	end := 0
+	for {
+		if c[end] == 0 {
+			break
+		}
+		end++
+	}
+	return string(c[:end])
+}
+
 func (self *ProcState) Get(pid int) error {
-	//return notImplemented()
+
+	var err error
+
+	self.Name, err = GetProcName(pid)
+	if err != nil {
+		return err
+	}
+
+	self.State, err = GetProcStatus(pid)
+	if err != nil {
+		return err
+	}
+
+	// TODO: ppid
 	return nil
+}
+
+func GetProcName(pid int) (string, error) {
+
+	handle, err := syscall.OpenProcess(syscall.PROCESS_QUERY_INFORMATION, false, uint32(pid))
+
+	defer syscall.CloseHandle(handle)
+
+	if err != nil {
+		return "", fmt.Errorf("OpenProcess fails with %v", err)
+	}
+
+	var nameProc [MAX_PATH]byte
+
+	ret, _, _ := procGetProcessImageFileName.Call(
+		uintptr(handle),
+		uintptr(unsafe.Pointer(&nameProc)),
+		uintptr(MAX_PATH),
+	)
+	if ret == 0 {
+		return "", fmt.Errorf("error %d while getting process name", C.GetLastError())
+	}
+
+	return filepath.Base(CarrayToString(nameProc)), nil
+
+}
+
+func GetProcStatus(pid int) (RunState, error) {
+
+	handle, err := syscall.OpenProcess(syscall.PROCESS_QUERY_INFORMATION, false, uint32(pid))
+
+	defer syscall.CloseHandle(handle)
+
+	if err != nil {
+		return RunStateUnknown, fmt.Errorf("OpenProcess fails with %v", err)
+	}
+
+	var ec uint32
+	e := syscall.GetExitCodeProcess(syscall.Handle(handle), &ec)
+	if e != nil {
+		return RunStateUnknown, os.NewSyscallError("GetExitCodeProcess", e)
+	}
+	if ec == 259 { //still active
+		return RunStateRun, nil
+	}
+	return RunStateSleep, nil
 }
 
 func (self *ProcMem) Get(pid int) error {
