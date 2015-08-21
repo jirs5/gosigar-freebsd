@@ -19,14 +19,17 @@ var (
 	modpsapi    = syscall.NewLazyDLL("psapi.dll")
 	modkernel32 = syscall.NewLazyDLL("kernel32.dll")
 
-	procEnumProcesses           = modpsapi.NewProc("EnumProcesses")
-	procGetProcessMemoryInfo    = modpsapi.NewProc("GetProcessMemoryInfo")
-	procGetProcessTimes         = modkernel32.NewProc("GetProcessTimes")
-	procGetProcessImageFileName = modpsapi.NewProc("GetProcessImageFileNameA")
+	procEnumProcesses            = modpsapi.NewProc("EnumProcesses")
+	procGetProcessMemoryInfo     = modpsapi.NewProc("GetProcessMemoryInfo")
+	procGetProcessTimes          = modkernel32.NewProc("GetProcessTimes")
+	procGetProcessImageFileName  = modpsapi.NewProc("GetProcessImageFileNameA")
+	procCreateToolhelp32Snapshot = modkernel32.NewProc("CreateToolhelp32Snapshot")
+	procProcess32First           = modkernel32.NewProc("Process32FirstW")
 )
 
 const (
 	PROCESS_ALL_ACCESS = 0x001f0fff
+	TH32CS_SNAPPROCESS = 0x02
 	MAX_PATH           = 260
 )
 
@@ -42,6 +45,21 @@ type PROCESS_MEMORY_COUNTERS_EX struct {
 	PagefileUsage              uintptr
 	PeakPagefileUsage          uintptr
 	PrivateUsage               uintptr
+}
+
+// PROCESSENTRY32 is the Windows API structure that contains a process's
+// information.
+type PROCESSENTRY32 struct {
+	Size              uint32
+	CntUsage          uint32
+	ProcessID         uint32
+	DefaultHeapID     uintptr
+	ModuleID          uint32
+	CntThreads        uint32
+	ParentProcessID   uint32
+	PriorityClassBase int32
+	Flags             uint32
+	ExeFile           [MAX_PATH]uint16
 }
 
 func init() {
@@ -61,8 +79,7 @@ func (self *Mem) Get() error {
 
 	succeeded := C.GlobalMemoryStatusEx(&statex)
 	if succeeded == C.FALSE {
-		lastError := C.GetLastError()
-		return fmt.Errorf("GlobalMemoryStatusEx failed with error: %d", int(lastError))
+		return syscall.GetLastError()
 	}
 
 	self.Total = uint64(statex.ullTotalPhys)
@@ -86,8 +103,7 @@ func (self *Cpu) Get() error {
 
 	succeeded := C.GetSystemTimes(&lpIdleTime, &lpKernelTime, &lpUserTime)
 	if succeeded == C.FALSE {
-		lastError := C.GetLastError()
-		return fmt.Errorf("GetSystemTime failed with error: %d", int(lastError))
+		return syscall.GetLastError()
 	}
 
 	LOT := float64(0.0000001)
@@ -126,7 +142,7 @@ func (self *ProcList) Get() error {
 		uintptr(unsafe.Pointer(&enumSize)),
 	)
 	if ret == 0 {
-		return fmt.Errorf("error %d while reading processes", C.GetLastError())
+		return syscall.GetLastError()
 	}
 
 	results := []int{}
@@ -172,7 +188,10 @@ func (self *ProcState) Get(pid int) error {
 		return err
 	}
 
-	// TODO: ppid
+	self.Ppid, err = GetParentPid(pid)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -194,7 +213,7 @@ func GetProcName(pid int) (string, error) {
 		uintptr(MAX_PATH),
 	)
 	if ret == 0 {
-		return "", fmt.Errorf("error %d while getting process name", C.GetLastError())
+		return "", syscall.GetLastError()
 	}
 
 	return filepath.Base(CarrayToString(nameProc)), nil
@@ -220,6 +239,27 @@ func GetProcStatus(pid int) (RunState, error) {
 		return RunStateRun, nil
 	}
 	return RunStateSleep, nil
+}
+
+func GetParentPid(pid int) (int, error) {
+
+	handle, _, _ := procCreateToolhelp32Snapshot.Call(
+		uintptr(TH32CS_SNAPPROCESS),
+		uintptr(uint32(pid)),
+	)
+	if handle < 0 {
+		return 0, syscall.GetLastError()
+	}
+
+	var entry PROCESSENTRY32
+	entry.Size = uint32(unsafe.Sizeof(entry))
+
+	ret, _, _ := procProcess32First.Call(handle, uintptr(unsafe.Pointer(&entry)))
+	if ret == 0 {
+		return 0, fmt.Errorf("Error retrieving process info.")
+	}
+	return int(entry.ParentProcessID), nil
+
 }
 
 func (self *ProcMem) Get(pid int) error {
@@ -298,8 +338,7 @@ func (self *FileSystemUsage) Get(path string) error {
 
 	succeeded := C.GetDiskFreeSpaceEx((*C.CHAR)(pathChars), &availableBytes, &totalBytes, &totalFreeBytes)
 	if succeeded == C.FALSE {
-		lastError := C.GetLastError()
-		return fmt.Errorf("GetDiskFreeSpaceEx failed with error: %d", int(lastError))
+		return syscall.GetLastError()
 	}
 
 	self.Total = *(*uint64)(unsafe.Pointer(&totalBytes))
