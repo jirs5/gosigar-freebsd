@@ -7,6 +7,7 @@ package sigar
 import "C"
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -25,6 +26,11 @@ var (
 	procGetProcessImageFileName  = modpsapi.NewProc("GetProcessImageFileNameA")
 	procCreateToolhelp32Snapshot = modkernel32.NewProc("CreateToolhelp32Snapshot")
 	procProcess32First           = modkernel32.NewProc("Process32FirstW")
+
+	procGetDiskFreeSpaceExW     = modkernel32.NewProc("GetDiskFreeSpaceExW")
+	procGetLogicalDriveStringsW = modkernel32.NewProc("GetLogicalDriveStringsW")
+	procGetDriveType            = modkernel32.NewProc("GetDriveTypeW")
+	provGetVolumeInformation    = modkernel32.NewProc("GetVolumeInformationW")
 )
 
 const (
@@ -125,7 +131,75 @@ func (self *CpuList) Get() error {
 }
 
 func (self *FileSystemList) Get() error {
-	return notImplemented()
+
+	/*
+		Get a list of the disks:
+		fsutil fsinfo drives
+
+		Get driver type:
+		fsutil fsinfo drivetype C:
+
+		Get volume info:
+		fsutil fsinfo volumeinfo C:
+	*/
+
+	NullTermToStrings := func(b []byte) []string {
+		list := []string{}
+		for _, x := range bytes.SplitN(b, []byte{0, 0}, -1) {
+			x = bytes.Replace(x, []byte{0}, []byte{}, -1)
+			if len(x) == 0 {
+				break
+			}
+			list = append(list, string(x))
+		}
+		return list
+	}
+
+	GetDriveTypeString := func(drivetype uintptr) string {
+		switch drivetype {
+		case 1:
+			return "Invalid"
+		case 2:
+			return "Removable drive"
+		case 3:
+			return "Fixed drive"
+		case 4:
+			return "Remote drive"
+		case 5:
+			return "CDROM"
+		case 6:
+			return "RAM disk"
+		default:
+			return "Unknown"
+		}
+	}
+
+	lpBuffer := make([]byte, 254)
+
+	ret, _, _ := procGetLogicalDriveStringsW.Call(
+		uintptr(len(lpBuffer)),
+		uintptr(unsafe.Pointer(&lpBuffer[0])))
+	if ret == 0 {
+		return fmt.Errorf("GetLogicalDriveStringsW %v", syscall.GetLastError())
+	}
+	fss := NullTermToStrings(lpBuffer)
+
+	for _, fs := range fss {
+		typepath, _ := syscall.UTF16PtrFromString(fs)
+		typeret, _, _ := procGetDriveType.Call(uintptr(unsafe.Pointer(typepath)))
+		if typeret == 0 {
+			return fmt.Errorf("GetDriveTypeW %v", syscall.GetLastError())
+		}
+		/* TODO volumeinfo by calling GetVolumeInformationW */
+
+		d := FileSystem{
+			DirName:  fs,
+			DevName:  fs,
+			TypeName: GetDriveTypeString(typeret),
+		}
+		self.List = append(self.List, d)
+	}
+	return nil
 }
 
 // Retrieves the process identifier for each process object in the system.
@@ -329,6 +403,11 @@ func (self *ProcExe) Get(pid int) error {
 }
 
 func (self *FileSystemUsage) Get(path string) error {
+
+	/*
+		Get free, available, total free bytes:
+		fsutil volume diskfree C:
+	*/
 	var availableBytes C.ULARGE_INTEGER
 	var totalBytes C.ULARGE_INTEGER
 	var totalFreeBytes C.ULARGE_INTEGER
@@ -342,6 +421,10 @@ func (self *FileSystemUsage) Get(path string) error {
 	}
 
 	self.Total = *(*uint64)(unsafe.Pointer(&totalBytes))
+	self.Free = *(*uint64)(unsafe.Pointer(&totalFreeBytes))
+	self.Used = self.Total - self.Free
+	self.Avail = *(*uint64)(unsafe.Pointer(&availableBytes))
+
 	return nil
 }
 
