@@ -26,3 +26,8 @@ install:
 script:
   - go build
   - go test
+
+matrix:
+  allow_failures:
+    # Investigating linux bug with gosigar's nproc value.
+    - os: linux
