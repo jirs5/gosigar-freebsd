@@ -5,6 +5,8 @@ package sigar
 import (
 	"bufio"
 	"bytes"
+	"errors"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -198,7 +200,11 @@ func (self *ProcState) Get(pid int) error {
 	fields := strings.Fields(headerAndStats[1])
 
 	name := strings.SplitAfterN(pidAndName, " ", 2)[1]
-	self.Name = name[1 : len(name)-1] // strip ()'s
+	if name[0] == '(' && name[len(name)-1] == ')' {
+		self.Name = name[1 : len(name)-1] // strip ()'s
+	} else {
+		return errors.New(fmt.Sprintf("Malformed process stats for pid %d", pid))
+	}
 
 	self.State = RunState(fields[0][0])
 
