@@ -8,7 +8,7 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
-	. "github.com/cloudfoundry/gosigar"
+	. "github.com/elastic/gosigar"
 )
 
 var _ = Describe("Sigar", func() {
