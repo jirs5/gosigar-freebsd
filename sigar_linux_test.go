@@ -1,14 +1,29 @@
 package sigar_test
 
 import (
+	"fmt"
 	"io/ioutil"
+	"math/rand"
+	"os"
+	"path/filepath"
+	"strconv"
 	"time"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
-	sigar "github.com/cloudfoundry/gosigar"
+	sigar "github.com/elastic/gosigar"
 )
+
+func writePidStats(pid int, procName string, path string) {
+	stats := "1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 " +
+		"20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 " +
+		"35 36 37 38 39 40"
+
+	statContents := []byte(fmt.Sprintf("%d (%s) %s", pid, procName, stats))
+	err := ioutil.WriteFile(path, statContents, 0644)
+	Expect(err).ToNot(HaveOccurred())
+}
 
 var _ = Describe("sigarLinux", func() {
 	var procd string
@@ -22,6 +37,36 @@ var _ = Describe("sigarLinux", func() {
 
 	AfterEach(func() {
 		sigar.Procd = "/proc"
+	})
+
+	Describe("ProcState", func() {
+		var (
+			pid         int
+			pidDir      string
+			pidStatFile string
+			state       sigar.ProcState
+		)
+
+		BeforeEach(func() {
+			pid = rand.Int()
+			pidDir = filepath.Join(procd, strconv.Itoa(pid))
+			err := os.Mkdir(pidDir, 0755)
+			Expect(err).ToNot(HaveOccurred())
+			pidStatFile = filepath.Join(pidDir, "stat")
+			state = sigar.ProcState{}
+		})
+
+		It("Knows the process name", func() {
+			writePidStats(pid, "cron", pidStatFile)
+			state.Get(pid)
+			Expect(state.Name).To(Equal("cron"))
+		})
+
+		It("Can handle spaces in the process name", func() {
+			writePidStats(pid, "a very long process name", pidStatFile)
+			state.Get(pid)
+			Expect(state.Name).To(Equal("a very long process name"))
+		})
 	})
 
 	Describe("CPU", func() {
