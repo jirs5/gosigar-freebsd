@@ -1,6 +1,6 @@
 // Copyright (c) 2012 VMware, Inc.
 
-package sigar
+package gosigar
 
 // #include <stdlib.h>
 // #include <windows.h>
@@ -486,7 +486,11 @@ func (self *FileSystemUsage) Get(path string) error {
 
 	succeeded := C.GetDiskFreeSpaceEx((*C.CHAR)(pathChars), &availableBytes, &totalBytes, &totalFreeBytes)
 	if succeeded == C.FALSE {
-		return syscall.GetLastError()
+		err := syscall.GetLastError()
+		if err == nil {
+			err = fmt.Errorf("unknown GetDiskFreeSpaceEx error")
+		}
+		return err
 	}
 
 	self.Total = *(*uint64)(unsafe.Pointer(&totalBytes))
