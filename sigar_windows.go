@@ -19,8 +19,7 @@ import (
 )
 
 var (
-	modpsapi    = syscall.NewLazyDLL("psapi.dll")
-	modkernel32 = syscall.NewLazyDLL("kernel32.dll")
+	modpsapi = syscall.NewLazyDLL("psapi.dll")
 
 	procEnumProcesses            = modpsapi.NewProc("EnumProcesses")
 	procGetProcessMemoryInfo     = modpsapi.NewProc("GetProcessMemoryInfo")
@@ -115,25 +114,21 @@ func (self *Swap) Get() error {
 }
 
 func (self *Cpu) Get() error {
-
-	var lpIdleTime, lpKernelTime, lpUserTime C.FILETIME
-
-	succeeded := C.GetSystemTimes(&lpIdleTime, &lpKernelTime, &lpUserTime)
-	if succeeded == C.FALSE {
-		return syscall.GetLastError()
+	var idleTime, kernelTime, userTime syscall.Filetime
+	err := _GetSystemTimes(&idleTime, &kernelTime, &userTime)
+	if err != nil {
+		return err
 	}
 
-	LOT := float64(0.0000001)
-	HIT := (LOT * 4294967296.0)
+	idleNs := FiletimeToDuration(&idleTime)
+	// Kernel time value also includes the amount of time the system has been idle.
+	sysNs := FiletimeToDuration(&kernelTime) - idleNs
+	userNs := FiletimeToDuration(&userTime)
 
-	idle := ((HIT * float64(lpIdleTime.dwHighDateTime)) + (LOT * float64(lpIdleTime.dwLowDateTime)))
-	user := ((HIT * float64(lpUserTime.dwHighDateTime)) + (LOT * float64(lpUserTime.dwLowDateTime)))
-	kernel := ((HIT * float64(lpKernelTime.dwHighDateTime)) + (LOT * float64(lpKernelTime.dwLowDateTime)))
-	system := (kernel - idle)
-
-	self.Idle = uint64(idle)
-	self.User = uint64(user)
-	self.Sys = uint64(system)
+	// CPU times are reported in milliseconds by gosigar.
+	self.Idle = uint64(idleNs / time.Millisecond)
+	self.Sys = uint64(sysNs / time.Millisecond)
+	self.User = uint64(userNs / time.Millisecond)
 	return nil
 }
 
@@ -246,7 +241,7 @@ func (self *ProcList) Get() error {
 
 func FiletimeToDuration(ft *syscall.Filetime) time.Duration {
 	n := int64(ft.HighDateTime)<<32 + int64(ft.LowDateTime) // in 100-nanosecond intervals
-	return time.Duration(n*100) * time.Nanosecond
+	return time.Duration(n * 100)
 }
 
 func CarrayToString(c [MAX_PATH]byte) string {
