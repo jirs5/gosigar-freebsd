@@ -1,4 +1,5 @@
-# Go sigar
+# Go sigar [![Build Status](https://travis-ci.org/elastic/gosigar.svg?branch=master)](https://travis-ci.org/elastic/gosigar) [![Build status](https://ci.appveyor.com/api/projects/status/4yh6sa7u97ek5uib/branch/master?svg=true)](https://ci.appveyor.com/project/elastic-beats/gosigar/branch/master)
+
 
 ## Overview
 
