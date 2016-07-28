@@ -24,20 +24,20 @@ type CPUSubsystem struct {
 type RT struct {
 	// Period of time in microseconds for how regularly the cgroup's access to
 	// CPU resources should be reallocated.
-	PeriodMicrosecs uint64 `json:"period_us"`
+	PeriodMicros uint64 `json:"period_us"`
 	// Period of time in microseconds for the longest continuous period in which
 	// the tasks in the cgroup have access to CPU resources.
-	RuntimeMicrosecs uint64 `json:"quota_us"`
+	RuntimeMicros uint64 `json:"quota_us"`
 }
 
 // CFS contains the tunable parameters for the completely fair scheduler.
 type CFS struct {
 	// Period of time in microseconds for how regularly the cgroup's access to
 	// CPU resources should be reallocated.
-	PeriodMicrosecs uint64 `json:"period_us"`
+	PeriodMicros uint64 `json:"period_us"`
 	// Total amount of time in microseconds for which all tasks in the cgroup
 	// can run during one period.
-	QuotaMicrosecs uint64 `json:"quota_us"`
+	QuotaMicros uint64 `json:"quota_us"`
 	// Relative share of CPU time available to tasks the cgroup. The value is
 	// an integer greater than or equal to 2.
 	Shares uint64 `json:"shares"`
@@ -51,7 +51,7 @@ type ThrottleStats struct {
 	// Number of periods when the cgroup hit its throttling limit.
 	ThrottledPeriods uint64 `json:"throttled_periods,omitempty"`
 	// Aggregate time the cgroup was throttled for in nanoseconds.
-	ThrottledTime uint64 `json:"throttled_nanos,omitempty"`
+	ThrottledTimeNanos uint64 `json:"throttled_nanos,omitempty"`
 }
 
 // Get reads metrics from the "cpu" subsystem. path is the filepath to the
@@ -98,7 +98,7 @@ func cpuStat(path string, cpu *CPUSubsystem) error {
 			cpu.Stats.ThrottledPeriods = v
 
 		case "throttled_time":
-			cpu.Stats.ThrottledTime = v
+			cpu.Stats.ThrottledTimeNanos = v
 		}
 	}
 
@@ -107,12 +107,12 @@ func cpuStat(path string, cpu *CPUSubsystem) error {
 
 func cpuCFS(path string, cpu *CPUSubsystem) error {
 	var err error
-	cpu.CFS.PeriodMicrosecs, err = parseUintFromFile(path, "cpu.cfs_period_us")
+	cpu.CFS.PeriodMicros, err = parseUintFromFile(path, "cpu.cfs_period_us")
 	if err != nil {
 		return err
 	}
 
-	cpu.CFS.QuotaMicrosecs, err = parseUintFromFile(path, "cpu.cfs_quota_us")
+	cpu.CFS.QuotaMicros, err = parseUintFromFile(path, "cpu.cfs_quota_us")
 	if err != nil {
 		return err
 	}
@@ -127,12 +127,12 @@ func cpuCFS(path string, cpu *CPUSubsystem) error {
 
 func cpuRT(path string, cpu *CPUSubsystem) error {
 	var err error
-	cpu.RT.PeriodMicrosecs, err = parseUintFromFile(path, "cpu.rt_period_us")
+	cpu.RT.PeriodMicros, err = parseUintFromFile(path, "cpu.rt_period_us")
 	if err != nil {
 		return err
 	}
 
-	cpu.RT.RuntimeMicrosecs, err = parseUintFromFile(path, "cpu.rt_runtime_us")
+	cpu.RT.RuntimeMicros, err = parseUintFromFile(path, "cpu.rt_runtime_us")
 	if err != nil {
 		return err
 	}

@@ -2,11 +2,12 @@ package cgroup
 
 import (
 	"encoding/json"
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
-const memoryPath = "testdata/sys/fs/cgroup/memory/docker/b29faf21b7eff959f64b4192c34d5d67a707fe8561e9eaa608cb27693fba4242"
+const memoryPath = "testdata/docker/sys/fs/cgroup/memory/docker/b29faf21b7eff959f64b4192c34d5d67a707fe8561e9eaa608cb27693fba4242"
 
 func TestMemoryStat(t *testing.T) {
 	mem := MemorySubsystem{}

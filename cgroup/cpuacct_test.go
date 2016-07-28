@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-const cpuacctPath = "testdata/sys/fs/cgroup/cpuacct/docker/b29faf21b7eff959f64b4192c34d5d67a707fe8561e9eaa608cb27693fba4242"
+const cpuacctPath = "testdata/docker/sys/fs/cgroup/cpuacct/docker/b29faf21b7eff959f64b4192c34d5d67a707fe8561e9eaa608cb27693fba4242"
 
 func TestCPUAccountingStats(t *testing.T) {
 	cpuacct := CPUAccountingSubsystem{}
@@ -34,7 +34,7 @@ func TestCpuacctUsagePerCPU(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	assert.Equal(t, []uint64{26571825468, 23185259690, 24300973729, 21937433730}, cpuacct.UsagePerCpu)
+	assert.Equal(t, []uint64{26571825468, 23185259690, 24300973729, 21937433730}, cpuacct.UsagePerCPU)
 }
 
 func TestCPUAccountingSubsystem_Get(t *testing.T) {
@@ -46,7 +46,7 @@ func TestCPUAccountingSubsystem_Get(t *testing.T) {
 	assert.Equal(t, cpuacctPath, cpuacct.Path)
 	assert.Equal(t, uint64(61950000000), cpuacct.Stats.UserNanos)
 	assert.Equal(t, uint64(95996653175), cpuacct.TotalNanos)
-	assert.Len(t, cpuacct.UsagePerCpu, 4)
+	assert.Len(t, cpuacct.UsagePerCPU, 4)
 }
 
 func TestCPUAccountingSubsystemJSON(t *testing.T) {

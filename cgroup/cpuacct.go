@@ -7,19 +7,22 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/elastic/gosigar/util"
 )
 
-var clockTicks = uint64(GetClockTicks())
+var clockTicks = uint64(util.GetClockTicks())
 
 // CPUAccountingSubsystem contains metrics from the "cpuacct" subsystem.
 type CPUAccountingSubsystem struct {
 	SubsystemInfo
 	TotalNanos  uint64   `json:"total_nanos"`
-	UsagePerCpu []uint64 `json:"usage_percpu_nanos"`
+	UsagePerCPU []uint64 `json:"usage_percpu_nanos"`
 	// CPU time statistics for tasks in this cgroup.
 	Stats CPUAccountingStats `json:"stats,omitempty"`
 }
 
+// CPUAccountingStats contains the stats reported from the cpuacct subsystem.
 type CPUAccountingStats struct {
 	UserNanos   uint64 `json:"user_nanos"`
 	SystemNanos uint64 `json:"system_nanos"`
@@ -98,7 +101,7 @@ func cpuacctUsagePerCPU(path string, cpuacct *CPUAccountingSubsystem) error {
 
 		values = append(values, value)
 	}
-	cpuacct.UsagePerCpu = values
+	cpuacct.UsagePerCPU = values
 
 	return nil
 }

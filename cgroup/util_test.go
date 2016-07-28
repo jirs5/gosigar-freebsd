@@ -1,13 +1,92 @@
 package cgroup
 
 import (
+	"archive/zip"
+	"fmt"
+	"io"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
+const dockerTestData = "testdata/docker.zip"
+
+func TestMain(m *testing.M) {
+	err := extractTestData(dockerTestData)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+	os.Exit(m.Run())
+}
+
+// extractTestData from zip file and write it in the same dir as the zip file.
+func extractTestData(path string) error {
+	r, err := zip.OpenReader(path)
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+
+	dest := filepath.Dir(path)
+
+	extractAndWriteFile := func(f *zip.File) error {
+		rc, err := f.Open()
+		if err != nil {
+			return err
+		}
+		defer rc.Close()
+
+		path := filepath.Join(dest, f.Name)
+		if found, err := exists(path); err != nil || found {
+			return err
+		}
+
+		if f.FileInfo().IsDir() {
+			os.MkdirAll(path, f.Mode())
+		} else {
+			destFile, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, os.FileMode(0700))
+			if err != nil {
+				return err
+			}
+			defer destFile.Close()
+
+			_, err = io.Copy(destFile, rc)
+			if err != nil {
+				return err
+			}
+
+			os.Chmod(path, f.Mode())
+		}
+		return nil
+	}
+
+	for _, f := range r.File {
+		err := extractAndWriteFile(f)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// exists returns whether the given file or directory exists or not
+func exists(path string) (bool, error) {
+	_, err := os.Stat(path)
+	if err == nil {
+		return true, nil
+	}
+	if os.IsNotExist(err) {
+		return false, nil
+	}
+	return true, err
+}
+
 func TestSupportedSubsystems(t *testing.T) {
-	subsystems, err := SupportedSubsystems("testdata")
+	subsystems, err := SupportedSubsystems("testdata/docker")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -39,7 +118,7 @@ func TestSubsystemMountpoints(t *testing.T) {
 	subsystems["memory"] = struct{}{}
 	subsystems["perf_event"] = struct{}{}
 
-	mountpoints, err := SubsystemMountpoints("testdata", subsystems)
+	mountpoints, err := SubsystemMountpoints("testdata/docker", subsystems)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -56,7 +135,7 @@ func TestSubsystemMountpoints(t *testing.T) {
 }
 
 func TestProcessCgroupPaths(t *testing.T) {
-	paths, err := ProcessCgroupPaths("testdata", 985)
+	paths, err := ProcessCgroupPaths("testdata/docker", 985)
 	if err != nil {
 		t.Fatal(err)
 	}

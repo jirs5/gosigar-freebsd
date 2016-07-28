@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-const cpuPath = "testdata/sys/fs/cgroup/cpu/docker/b29faf21b7eff959f64b4192c34d5d67a707fe8561e9eaa608cb27693fba4242"
+const cpuPath = "testdata/docker/sys/fs/cgroup/cpu/docker/b29faf21b7eff959f64b4192c34d5d67a707fe8561e9eaa608cb27693fba4242"
 
 func TestCpuStats(t *testing.T) {
 	cpu := CPUSubsystem{}
@@ -17,7 +17,7 @@ func TestCpuStats(t *testing.T) {
 
 	assert.Equal(t, uint64(769021), cpu.Stats.Periods)
 	assert.Equal(t, uint64(1046), cpu.Stats.ThrottledPeriods)
-	assert.Equal(t, uint64(352597023453), cpu.Stats.ThrottledTime)
+	assert.Equal(t, uint64(352597023453), cpu.Stats.ThrottledTimeNanos)
 }
 
 func TestCpuCFS(t *testing.T) {
@@ -26,8 +26,8 @@ func TestCpuCFS(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	assert.Equal(t, uint64(100000), cpu.CFS.PeriodMicrosecs)
-	assert.Equal(t, uint64(0), cpu.CFS.QuotaMicrosecs) // -1 is changed to 0.
+	assert.Equal(t, uint64(100000), cpu.CFS.PeriodMicros)
+	assert.Equal(t, uint64(0), cpu.CFS.QuotaMicros) // -1 is changed to 0.
 	assert.Equal(t, uint64(1024), cpu.CFS.Shares)
 }
 
@@ -37,8 +37,8 @@ func TestCpuRT(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	assert.Equal(t, uint64(1000000), cpu.RT.PeriodMicrosecs)
-	assert.Equal(t, uint64(0), cpu.RT.RuntimeMicrosecs)
+	assert.Equal(t, uint64(1000000), cpu.RT.PeriodMicros)
+	assert.Equal(t, uint64(0), cpu.RT.RuntimeMicros)
 }
 
 func TestCpuSubsystemGet(t *testing.T) {
@@ -49,8 +49,8 @@ func TestCpuSubsystemGet(t *testing.T) {
 
 	assert.Equal(t, cpuPath, cpu.Path)
 	assert.Equal(t, uint64(769021), cpu.Stats.Periods)
-	assert.Equal(t, uint64(100000), cpu.CFS.PeriodMicrosecs)
-	assert.Equal(t, uint64(1000000), cpu.RT.PeriodMicrosecs)
+	assert.Equal(t, uint64(100000), cpu.CFS.PeriodMicros)
+	assert.Equal(t, uint64(1000000), cpu.RT.PeriodMicros)
 }
 
 func TestCpuSubsystemJSON(t *testing.T) {
