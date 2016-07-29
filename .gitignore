@@ -31,3 +31,8 @@ examples/ps/ps
 examples/ps/ps.exe
 examples/uptime/uptime
 examples/uptime/uptime.exe
+
+# Test Data
+cgroup/testdata/*
+!cgroup/testdata/*.zip
+
