@@ -174,6 +174,10 @@ func SubsystemMountpoints(rootfsMountpoint string, subsystems map[string]struct{
 			continue
 		}
 
+		if !strings.HasPrefix(mount.mountpoint, rootfsMountpoint) {
+			continue
+		}
+
 		for _, opt := range mount.superOptions {
 			// Sometimes the subsystem name is written like "name=blkio".
 			fields := strings.SplitN(opt, "=", 2)
