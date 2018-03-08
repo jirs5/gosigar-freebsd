@@ -5,6 +5,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ## [Unreleased]
 
 ### Added
+- Added support for huge TLB pages on Linux #97
 
 ### Fixed
 

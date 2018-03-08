@@ -454,6 +454,72 @@ DirectMap1G:    147849216 kB
 
 }
 
+func TestLinuxHugeTLBPages(t *testing.T) {
+	setUp(t)
+	defer tearDown(t)
+
+	meminfoContents := `
+MemTotal:         374256 kB
+MemFree:          274460 kB
+Buffers:            9764 kB
+Cached:            38648 kB
+SwapCached:            0 kB
+Active:            33772 kB
+Inactive:          31184 kB
+Active(anon):      16572 kB
+Inactive(anon):      552 kB
+Active(file):      17200 kB
+Inactive(file):    30632 kB
+Unevictable:           0 kB
+Mlocked:               0 kB
+SwapTotal:        786428 kB
+SwapFree:         786428 kB
+Dirty:                 0 kB
+Writeback:             0 kB
+AnonPages:         16564 kB
+Mapped:             6612 kB
+Shmem:               584 kB
+Slab:              19092 kB
+SReclaimable:       9128 kB
+SUnreclaim:         9964 kB
+KernelStack:         672 kB
+PageTables:         1864 kB
+NFS_Unstable:          0 kB
+Bounce:                0 kB
+WritebackTmp:          0 kB
+CommitLimit:      973556 kB
+Committed_AS:      55880 kB
+VmallocTotal:   34359738367 kB
+VmallocUsed:       21428 kB
+VmallocChunk:   34359713596 kB
+HardwareCorrupted:     0 kB
+AnonHugePages:         0 kB
+HugePages_Total:      16
+HugePages_Free:       14
+HugePages_Rsvd:        2
+HugePages_Surp:        0
+Hugepagesize:       2048 kB
+DirectMap4k:       59328 kB
+DirectMap2M:      333824 kB
+`
+
+	meminfoFile := procd + "/meminfo"
+	err := ioutil.WriteFile(meminfoFile, []byte(meminfoContents), 0444)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	hugePages := sigar.HugeTLBPages{}
+	if assert.NoError(t, hugePages.Get()) {
+		assert.Equal(t, uint64(16), hugePages.Total)
+		assert.Equal(t, uint64(14), hugePages.Free)
+		assert.Equal(t, uint64(2), hugePages.Reserved)
+		assert.Equal(t, uint64(0), hugePages.Surplus)
+		assert.Equal(t, uint64(2048*1024), hugePages.DefaultSize)
+		assert.Equal(t, uint64(4*2048*1024), hugePages.TotalAllocatedSize)
+	}
+}
+
 func TestFDUsage(t *testing.T) {
 	setUp(t)
 	defer tearDown(t)
