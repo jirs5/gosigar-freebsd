@@ -7,6 +7,7 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ### Added
 
 ### Fixed
+- Replaced the WMI queries with win32 apis due to high CPU usage. #11840
 
 ### Changed
 
