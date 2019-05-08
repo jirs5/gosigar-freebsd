@@ -8,6 +8,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Fixed
 
+- Fix memory leak when getting process arguments. #119
+
 ### Changed
 
 ### Deprecated
