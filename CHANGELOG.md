@@ -8,11 +8,14 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Fixed
 
-- Fix memory leak when getting process arguments. #119
-
 ### Changed
 
 ### Deprecated
+
+## [0.10.2]
+
+### Fixed
+- Fix memory leak when getting process arguments. #119
 
 ## [0.10.1]
 
