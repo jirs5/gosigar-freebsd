@@ -194,10 +194,7 @@ func (self *ProcState) Get(pid int) error {
 		errs = append(errs, errors.Wrap(err, "getParentPid failed"))
 	}
 
-	self.Username, err = getProcCredName(pid)
-	if err != nil {
-		errs = append(errs, errors.Wrap(err, "getProcCredName failed"))
-	}
+	self.Username, _ = getProcCredName(pid)
 
 	if len(errs) > 0 {
 		errStrs := make([]string, 0, len(errs))
@@ -274,17 +271,13 @@ func getProcCredName(pid int) (string, error) {
 	if err != nil {
 		return "", errors.Wrapf(err, "OpenProcessToken failed for pid=%v", pid)
 	}
+	// Close token to prevent handle leaks.
+	defer token.Close()
 
 	// Find the token user.
 	tokenUser, err := token.GetTokenUser()
 	if err != nil {
 		return "", errors.Wrapf(err, "GetTokenInformation failed for pid=%v", pid)
-	}
-
-	// Close token to prevent handle leaks.
-	err = token.Close()
-	if err != nil {
-		return "", errors.Wrapf(err, "failed while closing process token handle for pid=%v", pid)
 	}
 
 	// Look up domain account by SID.
