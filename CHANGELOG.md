@@ -7,11 +7,15 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 ### Added
 
 ### Fixed
-- ProcState.Get() doesn't fail under Windows when it cannot obtain process ownership information. #121
 
 ### Changed
 
 ### Deprecated
+
+## [0.10.3]
+
+### Fixed
+- ProcState.Get() doesn't fail under Windows when it cannot obtain process ownership information. #121
 
 ## [0.10.2]
 
