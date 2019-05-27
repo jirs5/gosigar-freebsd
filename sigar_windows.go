@@ -194,6 +194,10 @@ func (self *ProcState) Get(pid int) error {
 		errs = append(errs, errors.Wrap(err, "getParentPid failed"))
 	}
 
+	// getProcCredName will often fail when run as a non-admin user. This is
+	// caused by strict ACL of the process token belonging to other users.
+	// Instead of failing completely, ignore this error and still return most
+	// data with an empty Username.
 	self.Username, _ = getProcCredName(pid)
 
 	if len(errs) > 0 {
