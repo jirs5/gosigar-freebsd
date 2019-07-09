@@ -8,6 +8,8 @@ This project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Fixed
 
+- Fixed a crash when splitting command-line arguments under Windows. #124
+
 ### Changed
 
 ### Deprecated
