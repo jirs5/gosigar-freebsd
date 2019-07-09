@@ -293,7 +293,7 @@ func TestByteSliceToStringSliceEmptyBytes(t *testing.T) {
 
 func mkUtf16bytes(s string) []byte {
 	n := len(s)
-	b := make([]byte, n * 2)
+	b := make([]byte, n*2)
 	for idx, val := range s {
 		*(*uint16)(unsafe.Pointer(&b[idx*2])) = uint16(val)
 	}
@@ -308,7 +308,6 @@ func TestByteSliceToStringSliceNotTerminated(t *testing.T) {
 	assert.Equal(t, "Hello", cmd[0])
 	assert.Equal(t, "World", cmd[1])
 }
-
 
 func TestByteSliceToStringSliceNotOddSize(t *testing.T) {
 	b := mkUtf16bytes("BAD")[:5]
