@@ -504,7 +504,7 @@ func GetUserProcessParams(handle syscall.Handle, pbi ProcessBasicInformation) (p
 }
 
 // ReadProcessUnicodeString returns a zero-terminated UTF-16 string from another
-// process memory.
+// process's memory.
 func ReadProcessUnicodeString(handle syscall.Handle, s *UnicodeString) ([]byte, error) {
 	// Allocate an extra UTF-16 null character at the end in case the read string
 	// is not terminated.
