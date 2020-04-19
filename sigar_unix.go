@@ -10,7 +10,24 @@ import (
 
 	"golang.org/x/sys/unix"
 )
-
+//func (self *FileSystemUsage) Get(path string) error {
+//	stat := syscall.Statfs_t{}
+//	err := syscall.Statfs(path, &stat)
+//	if err != nil {
+//		return err
+//	}
+//
+//	bsize := stat.Bsize / 512
+//
+//	self.Total = (uint64(stat.Blocks) * uint64(bsize)) >> 1
+//	self.Free = (uint64(stat.Bfree) * uint64(bsize)) >> 1
+//	self.Avail = (uint64(stat.Bavail) * uint64(bsize)) >> 1
+//	self.Used = self.Total - self.Free
+//	self.Files = stat.Files
+//	self.FreeFiles = stat.Ffree
+//
+//	return nil
+//}
 func (self *FileSystemUsage) Get(path string) error {
 	stat := syscall.Statfs_t{}
 	err := syscall.Statfs(path, &stat)
@@ -18,9 +35,11 @@ func (self *FileSystemUsage) Get(path string) error {
 		return err
 	}
 
-	self.Total = uint64(stat.Blocks) * uint64(stat.Bsize)
-	self.Free = uint64(stat.Bfree) * uint64(stat.Bsize)
-	self.Avail = uint64(stat.Bavail) * uint64(stat.Bsize)
+	bsize := stat.Bsize / 1024
+
+	self.Total = uint64(stat.Blocks) * uint64(bsize)
+	self.Free = uint64(stat.Bfree) * uint64(bsize)
+	self.Avail = uint64(stat.Bavail) * uint64(bsize)
 	self.Used = self.Total - self.Free
 	self.Files = stat.Files
 	self.FreeFiles = uint64(stat.Ffree)
